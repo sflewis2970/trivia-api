@@ -1,0 +1,28 @@
+services:
+  cache:
+    image: redis:7.0
+    container_name: CNT-Cache
+    restart: always
+    ports:
+      - 6379:6379
+    command: redis-server --save 30 1 --loglevel warning
+    volumes:
+      - cache:/data
+
+  api-service:
+    image: sflewis/api-service
+    container_name: CNT-APIService
+    depends_on:
+      - cache
+    ports:
+      - 8080:8080
+    environment:
+      HOST:
+      PORT: 8080
+      REDIS_TLS_URL: cache
+      REDIS_URL: cache
+      REDIS_PORT: 6379
+
+volumes:
+  cache:
+    driver: local
