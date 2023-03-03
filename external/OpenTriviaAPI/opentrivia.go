@@ -1,10 +1,9 @@
-package trivia
+package OpenTriviaAPI
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
 	"github.com/sflewis2970/trivia-api/common"
 	"github.com/sflewis2970/trivia-api/messages"
 	"io"
@@ -20,12 +19,17 @@ const (
 	RapidAPIValue   string = "1f8720c0c7msh43fe783209a6813p1833b2jsnc2300c30b9a9"
 
 	TriviaURL          string = "https://trivia-by-api-ninjas.p.rapidapi.com/v1/trivia"
-	TriviaAPIHostValue string = "trivia-by-api-ninjas.p.rapidapi.com"
+	TriviaAPIHostValue string = "api-by-api-ninjas.p.rapidapi.com"
 
 	TriviaCategoryCount  int = 14
 	EmptyRecordCount     int = 0
 	TriviaMaxRecordCount int = 5
 )
+
+type Message struct {
+	CongratsMsg string `json:"congrats"`
+	TryAgainMsg string `json:"tryagain"`
+}
 
 var CategoryList = [TriviaCategoryCount]string{"artliterature", "language", "sciencenature", "general", "fooddrink", "peopleplaces",
 	"geography", "historyholidays", "entertainment", "toysgames", "music", "mathematics", "religionmythology", "sportsleisure"}
@@ -36,11 +40,13 @@ type TriviaResponse struct {
 	Answer   string `json:"answer"`
 }
 
-type API struct {
+type OpenTrivia struct {
 }
 
+var openTrivia *OpenTrivia
+
 // GetTrivia exported type method
-func (a *API) GetTrivia(category string) (messages.Trivia, error) {
+func (ot *OpenTrivia) GetTrivia(category string) (messages.Trivia, error) {
 	// Initialize data store when needed
 	categoryLen := len(category)
 	limit := 0
@@ -48,7 +54,7 @@ func (a *API) GetTrivia(category string) (messages.Trivia, error) {
 	var apiResponseErr error
 	var apiResponses []TriviaResponse
 	apiResponsesSize := 0
-	timestamp := ""
+	// timestamp := ""
 
 	// validate category
 	if categoryLen > 0 && !isItemInCategoryList(category) {
@@ -60,14 +66,14 @@ func (a *API) GetTrivia(category string) (messages.Trivia, error) {
 	// Check for duplicates for marking the request as complete
 	for !requestComplete {
 		// Send request to API
-		apiResponses, timestamp, apiResponseErr = a.triviaRequest(category, limit)
+		apiResponses, _, apiResponseErr = ot.triviaRequest(category, limit)
 
 		// Get API Response size
 		apiResponsesSize = len(apiResponses)
 
 		if apiResponsesSize > 0 {
 			// When results are returned, make sure there are no duplicate answers
-			if !a.containsDuplicates(apiResponses) {
+			if !ot.containsDuplicates(apiResponses) {
 				log.Print("No duplicates found...")
 				requestComplete = true
 			} else {
@@ -83,7 +89,7 @@ func (a *API) GetTrivia(category string) (messages.Trivia, error) {
 	var trivia messages.Trivia
 
 	// Build API Response
-	trivia.Timestamp = timestamp
+	// trivia.Timestamp = timestamp
 
 	if apiResponseErr != nil {
 		// If an error occurs let the client know
@@ -92,11 +98,11 @@ func (a *API) GetTrivia(category string) (messages.Trivia, error) {
 		// Since the client is no longer allowed to supply a limit
 		// there should be five items returned from the API
 		// After getting a valid response from the API, generate a question ID
-		trivia.QuestionID = uuid.New().String()
-		trivia.QuestionID = common.BuildUUID(trivia.QuestionID, messages.DASH, messages.ONE_SET)
-		trivia.Category = apiResponses[0].Category
-		trivia.Question = apiResponses[0].Question
-		trivia.Answer = apiResponses[0].Answer
+		// trivia.QuestionID = uuid.New().String()
+		// trivia.QuestionID = common.BuildUUID(trivia.QuestionID, messages.DASH, messages.ONE_SET)
+		// trivia.Category = apiResponses[0].Category
+		// trivia.Question = apiResponses[0].Question
+		// trivia.Answer = apiResponses[0].Answer
 
 		// Build choices string
 		var choiceList []string
@@ -108,16 +114,16 @@ func (a *API) GetTrivia(category string) (messages.Trivia, error) {
 		choiceList = common.ShuffleList(choiceList)
 
 		// Add a message filler to the beginning of the list
-		trivia.Choices = append(trivia.Choices, messages.MAKE_SELECTION_MSG)
-		trivia.Choices = append(trivia.Choices, choiceList...)
+		// trivia.Choices = append(trivia.Choices, messages.MAKE_SELECTION_MSG)
+		// trivia.Choices = append(trivia.Choices, choiceList...)
 	}
 
 	return trivia, nil
 }
 
 // unexported type method
-// triviaRequest is a function that sends a request to the API to retrieve the trivia
-func (a *API) triviaRequest(category string, limit int) ([]TriviaResponse, string, error) {
+// triviaRequest is a function that sends a request to the API to retrieve the api
+func (ot *OpenTrivia) triviaRequest(category string, limit int) ([]TriviaResponse, string, error) {
 	// Build URL string
 	url := TriviaURL
 
@@ -188,7 +194,7 @@ func (a *API) triviaRequest(category string, limit int) ([]TriviaResponse, strin
 }
 
 // containsDuplicates checks the slice for any duplicate items
-func (a *API) containsDuplicates(items []TriviaResponse) bool {
+func (ot *OpenTrivia) containsDuplicates(items []TriviaResponse) bool {
 	// Initialize the map for usage
 	itemsMap := make(map[string]int)
 
@@ -206,11 +212,11 @@ func (a *API) containsDuplicates(items []TriviaResponse) bool {
 	return false
 }
 
-func New() *API {
+func NewOpenTrivia() *OpenTrivia {
 	log.Print("Creating API object...")
-	api := new(API)
+	openTrivia = new(OpenTrivia)
 
-	return api
+	return openTrivia
 }
 
 // unexported functions

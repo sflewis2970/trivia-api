@@ -1,32 +1,37 @@
-package trivia
+package handlers
 
 import (
 	"encoding/json"
+	"github.com/sflewis2970/trivia-api/external/OpenTriviaAPI"
+	"github.com/sflewis2970/trivia-api/messages"
+	"github.com/sflewis2970/trivia-api/models"
 	"log"
 	"net/http"
 )
 
 type TriviaHandler struct {
-	triviaAPI   *trivia.API
+	openTrivia  *OpenTriviaAPI.OpenTrivia
 	triviaModel *models.TriviaModel
 }
 
+var triviaHandler *TriviaHandler
+
 // GetTriviaQuestion is a http handler that receives a client "GET" request.
-// Clients will send a request when they want to receive a trivia question from the trivia API.
-// The format used is: 'http://<server-name>:8080/trivia/add?category=name'. category is optional
-// When 'category' is supplied the trivia API returns a question related to the requested category
-// When 'category' is omitted, the trivia API determines whether not the selected question is related
+// Clients will send a request when they want to receive a api question from the api API.
+// The format used is: 'http://<server-name>:8080/api/add?category=name'. category is optional
+// When 'category' is supplied the api API returns a question related to the requested category
+// When 'category' is omitted, the api API determines whether not the selected question is related
 // to a category.
 // The request returns a QuestionResponse object.
 // The format for QuestionResponse is:
 //       {"questionid": "<random_id>",
-//        "question": "<question from trivia API>",
+//        "question": "<question from api API>",
 //        "category": "<category is not required and could be blank>",
 //        "choices": "<choices are generated from API. One answer is correct, the others are incorrect>",
 //        "timestamp": "<formatted string of when the API returned the question>",
 //        "warning": "<optional warning message>",
 //        "error": "<optional error message>"}
-func (th *TriviaHandler) GetTriviaQuestion(rw http.ResponseWriter, r *http.Request) {
+func (th *TriviaHandler) GetQuestion(rw http.ResponseWriter, r *http.Request) {
 	// Display a log message
 	log.Print("data received from client...")
 
@@ -36,7 +41,7 @@ func (th *TriviaHandler) GetTriviaQuestion(rw http.ResponseWriter, r *http.Reque
 	var qResponse messages.QuestionResponse
 
 	// Process API Get Request
-	triviaData, triviaErr := th.triviaAPI.GetTrivia(category)
+	triviaData, triviaErr := th.openTrivia.GetTrivia(category)
 	if triviaErr != nil {
 		log.Print("Error encoding json...:", triviaErr)
 
@@ -51,8 +56,8 @@ func (th *TriviaHandler) GetTriviaQuestion(rw http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Send request to model to insert trivia question
-	insertErr := th.triviaModel.AddTriviaQuestion(triviaData)
+	// Send request to model to insert api question
+	insertErr := th.triviaModel.AddQuestion(triviaData)
 
 	// Add question to data store
 	if insertErr != nil {
@@ -73,13 +78,6 @@ func (th *TriviaHandler) GetTriviaQuestion(rw http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Update QuestionResponse
-	qResponse.QuestionID = triviaData.QuestionID
-	qResponse.Question = triviaData.Question
-	qResponse.Category = triviaData.Category
-	qResponse.Choices = triviaData.Choices
-	qResponse.Timestamp = triviaData.Timestamp
-
 	// Update HTTP Header
 	rw.WriteHeader(http.StatusCreated)
 
@@ -91,8 +89,8 @@ func (th *TriviaHandler) GetTriviaQuestion(rw http.ResponseWriter, r *http.Reque
 }
 
 // SubmitTriviaAnswer is a http handler that receives a response message from the client.
-// The client is responding to question received from the trivia API.
-// The request uses the form of: 'http://<server-name>:8080//api/v1/trivia/questions' including a
+// The client is responding to question received from the api API.
+// The request uses the form of: 'http://<server-name>:8080//api/v1/api/questions' including a
 // json object:
 //        "questionid": "<id received in the question response>",
 //        "response": "<answer question from list of choices>"
@@ -105,7 +103,7 @@ func (th *TriviaHandler) GetTriviaQuestion(rw http.ResponseWriter, r *http.Reque
 //       "message": "<message to client whether question was answered correctly>",
 //       "warning": "<optional warning message>",
 //       "error": "<optional error message>"
-func (th *TriviaHandler) SubmitTriviaAnswer(rw http.ResponseWriter, r *http.Request) {
+func (th *TriviaHandler) AnswerQuestion(rw http.ResponseWriter, r *http.Request) {
 	var aRequest messages.AnswerRequest
 	var aResponse messages.AnswerResponse
 
@@ -127,10 +125,10 @@ func (th *TriviaHandler) SubmitTriviaAnswer(rw http.ResponseWriter, r *http.Requ
 
 	// Send a request to the model for the answer
 	var getErr error
-	aResponse, getErr = th.triviaModel.GetTriviaAnswer(aRequest)
+	aResponse, getErr = th.triviaModel.GetAnswer(aRequest)
 
 	if getErr != nil {
-		log.Print("Error getting trivia answer...: ", getErr)
+		log.Print("Error getting api answer...: ", getErr)
 
 		// Update AnswerResponse
 		aResponse.Error = getErr.Error()
@@ -144,10 +142,10 @@ func (th *TriviaHandler) SubmitTriviaAnswer(rw http.ResponseWriter, r *http.Requ
 	}
 
 	// Send a request to the model to delete the question
-	deleteErr := th.triviaModel.DeleteTriviaQuestion(aRequest.QuestionID)
+	deleteErr := th.triviaModel.DeleteQuestion(aRequest.QuestionID)
 
 	if deleteErr != nil {
-		log.Print("Error deleting trivia question...: ", deleteErr)
+		log.Print("Error deleting api question...: ", deleteErr)
 
 		// Update AnswerResponse
 		aResponse.Error = deleteErr.Error()
@@ -183,14 +181,14 @@ func encodeResponse[T MessageSet](rw http.ResponseWriter, response T) {
 	}
 }
 
-func New() *TriviaHandler {
-	handler := new(TriviaHandler)
+func NewTriviaHandler() *TriviaHandler {
+	triviaHandler := new(TriviaHandler)
 
-	// Create trivia model
-	handler.triviaModel = models.NewTriviaModel()
+	// Create api api
+	triviaHandler.openTrivia = OpenTriviaAPI.NewOpenTrivia()
 
-	// Create trivia api
-	handler.triviaAPI = trivia.New()
+	// Create api model
+	triviaHandler.triviaModel = models.NewTriviaModel()
 
-	return handler
+	return triviaHandler
 }

@@ -1,7 +1,7 @@
 services:
   cache:
     image: redis:7.0
-    container_name: CNT-Cache
+    container_name: CNT-RedisCache
     restart: always
     ports:
       - 6379:6379
@@ -10,8 +10,8 @@ services:
       - cache:/data
 
   api-service:
-    image: sflewis/api-service
-    container_name: CNT-APIService
+    image: sflewis/trivia-api-service
+    container_name: CNT-TriviaAPIService
     depends_on:
       - cache
     ports:

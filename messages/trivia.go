@@ -7,19 +7,17 @@ const (
 	ONE_SET int    = 1
 )
 
-type Trivia struct {
+type Trivia struct{}
+type TriviaTable struct{}
+
+// QuestionResponse Request-Response messaging
+type QuestionRequest struct {
 	QuestionID string   `json:"questionid"`
 	Question   string   `json:"question"`
 	Category   string   `json:"category"`
 	Answer     string   `json:"answer"`
 	Choices    []string `json:"choices"`
 	Timestamp  string   `json:"timestamp"`
-}
-
-type TriviaTable struct {
-	Question string `json:"question"`
-	Category string `json:"category"`
-	Answer   string `json:"answer"`
 }
 
 // QuestionResponse Request-Response messaging
