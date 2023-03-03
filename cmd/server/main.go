@@ -3,7 +3,7 @@ package server
 import (
 	"github.com/rs/cors"
 	"github.com/sflewis2970/trivia-api/config"
-	controllers "github.com/sflewis2970/trivia-api/controller"
+	controllers "github.com/sflewis2970/trivia-api/controllers"
 	"log"
 	"net/http"
 )
@@ -13,13 +13,10 @@ func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 
 	// Get config data
-	cfgData, cfgDataErr := config.Get().GetData(config.UPDATE_CONFIG_DATA)
-	if cfgDataErr != nil {
-		log.Fatal("Error getting config data: ", cfgDataErr)
-	}
+	cfgData := config.NewConfig().LoadCfgData()
 
-	// Create controller
-	controller := controllers.New()
+	// Create controllers
+	controller := controllers.NewController()
 
 	// setup Cors
 	log.Print("Setting up CORS...")
